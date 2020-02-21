@@ -1,0 +1,49 @@
+  require 'capybara-screenshot/rspec' # I need this to enable screenshot function, i.e. I work on rspec 
+  require 'chunky_png' # need this lib to use image related function to deal with png
+
+  def search_by_image
+
+    # ------------------- Start Page ---------------------------------------------------
+
+    Capybara.current_driver = :selenium_chrome # Launch Chrome as browser
+    page.driver.browser.manage.window.maximize # Maximize browser
+    visit '/images.wjbaike.site/' # Load HomePage
+
+    # ------------------- Search Image --------------------------------------------------
+
+    capture_button = "//span[@class = 'BwoPOe']" 
+    find(:xpath, capture_button).click # Click capture button to start Upload/Capture image
+    URL_input_text = 'used_image_url'
+    URL_input_id = 'qbui'
+    fill in URL_input_id with URL_input_text # Input image path
+    Search_button = "//input[@type = 'submit' and @value = 'Search by image']"    
+    
+    # ------------------- load configuration --------------------------------------------
+
+    file = File.open("configuration.txt") # Get file object
+    file_text = file.read # Get file data
+    visit_index = file_text[14...file_text.length-1].to_i # i.e. configuration file in format VISIT_RESULT="3", get the index number
+
+    # ------------------- Capture last visit ----------------------------------------------
+
+    click_on('All sizes') # Click link to display result of all sizes
+    result_xpath = "(//div[@class = 'isv-r PNCib MSM1fd BUooTd'])[#{visit_index}]"
+    find(:xpath, result_xpath).click # Click the result that is set in configuration file
+    Capybara.save_path = "/your_file_path_for_screenshot/" # Set screenshot save path
+    Capybara::Screenshot.screenshot_and_save_page # Catch screenshot 
+    
+    # ------------------- Compare how much result image related to used image -----------------------------
+
+    images = [ ChunkyPNG::Image.from_file('used_image.png'), ChunkyPNG::Image.from_file('screenshot_image.png') ]
+    diff = []
+    images.first.height.times do |y| # Compare each pixel in used_image to screenshot_image
+      images.first.row(y).each_with_index do |pixel, x|
+        diff << [x,y] unless pixel == images.last[x,y]
+      end
+    end
+
+    puts "pixels (total):     #{images.first.pixels.length}"
+    puts "pixels changed:     #{diff.length}"
+    puts "pixels changed (%): #{(diff.length.to_f / images.first.pixels.length) * 100}%" # Result 0% means two images are same. vice versa. 
+
+  end           
